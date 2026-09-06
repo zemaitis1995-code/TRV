@@ -3,15 +3,14 @@ name: Build TREVORAS APK
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [ "main", "master" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Java 17
@@ -20,45 +19,19 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Find project and build APK
-        shell: bash
-        run: |
-          set -e
+      - name: Set up Gradle 8.10.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
 
-          echo "Ieškau gradlew..."
-          GRADLEW=$(find . -type f -name gradlew | head -n 1)
+      - name: Build TREVORAS
+        run: gradle --no-daemon :app:assembleDebug
 
-          if [ -z "$GRADLEW" ]; then
-            echo "KLAIDA: gradlew projekte nerastas."
-            echo "Repo failai:"
-            find . -maxdepth 3 -type f | sort
-            exit 1
-          fi
-
-          echo "Rastas: $GRADLEW"
-
-          PROJECT_DIR=$(dirname "$GRADLEW")
-          cd "$PROJECT_DIR"
-
-          chmod +x gradlew
-          ./gradlew --no-daemon :app:assembleDebug
-
-      - name: Find generated APK
-        shell: bash
-        run: |
-          APK=$(find . -type f -name "*debug*.apk" | head -n 1)
-
-          if [ -z "$APK" ]; then
-            echo "KLAIDA: APK nerastas"
-            exit 1
-          fi
-
-          echo "APK=$APK" >> "$GITHUB_ENV"
-          echo "Rastas APK: $APK"
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk TREVORAS.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: TREVORAS-APK
-          path: ${{ env.APK }}
-          if-no-files-found: error
+          path: TREVORAS.apk
